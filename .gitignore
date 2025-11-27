@@ -1,10 +1,17 @@
 # k6 Performance Testing - Git Ignore Rules
 
-# Test Result Files and Examples
-results/
+# Examples folder
 examples/
 
+# Test Result Files (ignore data, keep structure)
+results/*.html
+results/*.json
+results/*.csv
+results/*.xml
+results/*.txt
+
 # Keep results directory structure
+!results/
 !results/.gitkeep
 
 # Node modules (if using npm for utilities)
