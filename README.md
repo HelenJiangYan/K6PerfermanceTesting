@@ -250,62 +250,114 @@ k6 run performanceTests/load/createProjectAndSpecLoadTest.js
 ```
 
 **配置**:
-- 阶段 1: 0 → 10 VUs (30 秒爬坡)
-- 阶段 2: 10 VUs (2 分钟稳定)
-- 阶段 3: 10 → 0 VUs (30 秒下降)
+- 执行器: constant-vus（恒定虚拟用户）
+- 并发用户: 20 VUs
+- 持续时间: 5 分钟
+
+**自定义配置**:
+```bash
+# 自定义并发数
+k6 run -e VUS=10 performanceTests/load/createProjectAndSpecLoadTest.js
+
+# 自定义持续时间
+k6 run -e DURATION=3m performanceTests/load/createProjectAndSpecLoadTest.js
+```
 
 **性能阈值**:
 - ✓ 失败率 < 1%
-- ✓ P95 响应时间 < 15 秒
+- ✓ P95 响应时间 < 5 秒
 - ✓ 检查通过率 > 90%
+- ✓ 每秒请求数 > 10
 
 ---
 
 ### 3. 压力测试 (Stress Test)
 
-**用途**: 找到系统性能瓶颈和极限
+**用途**: 逐步增加负载，找到系统性能瓶颈和极限
 
 ```bash
 k6 run performanceTests/stress/createProjectAndSpecStressTest.js
 ```
 
 **配置**:
-- 阶段 1: 0 → 20 VUs (1 分钟)
-- 阶段 2: 20 → 40 VUs (2 分钟)
-- 阶段 3: 40 → 60 VUs (2 分钟)
-- 阶段 4: 60 → 0 VUs (1 分钟)
+- 执行器: ramping-vus（阶梯式增加虚拟用户）
+- 阶段 1: 0 → 50 VUs (2 分钟爬坡)
+- 阶段 2: 50 VUs 稳定 (3 分钟)
+- 阶段 3: 50 → 100 VUs (2 分钟爬坡)
+- 阶段 4: 100 VUs 稳定 (3 分钟)
+- 阶段 5: 100 → 150 VUs (2 分钟爬坡)
+- 阶段 6: 150 VUs 稳定 (3 分钟)
+- 阶段 7: 150 → 200 VUs (2 分钟爬坡)
+- 阶段 8: 200 VUs 稳定 (3 分钟)
+- 阶段 9: 200 → 0 VUs (2 分钟下降)
 
-**目标**: 找到系统开始出现错误的负载点
+**性能阈值**:
+- ✓ 失败率 < 5%（允许更高失败率）
+- ✓ P95 响应时间 < 10 秒
+- ✓ 检查通过率 > 85%
+
+**目标**: 找到系统开始出现错误的负载点，最大并发200用户
 
 ---
 
 ### 4. 峰值测试 (Spike Test)
 
-**用途**: 测试系统应对突发流量的能力
+**用途**: 模拟突发流量（如抢购、促销活动），测试系统应对能力
 
 ```bash
 k6 run performanceTests/spike/createProjectAndSpecSpikeTest.js
 ```
 
 **配置**:
-- 正常负载: 5 VUs
-- 突发峰值: 50 VUs (持续 30 秒)
-- 恢复观察: 返回 5 VUs
+- 执行器: ramping-vus（快速增加虚拟用户）
+- 阶段 1: 0 → 20 VUs (1 分钟，正常流量)
+- 阶段 2: 20 VUs 稳定 (2 分钟)
+- 阶段 3: 20 → 100 VUs (30 秒，**突发峰值**！)
+- 阶段 4: 100 VUs 稳定 (3 分钟，观察峰值期表现)
+- 阶段 5: 100 → 20 VUs (30 秒，快速恢复)
+- 阶段 6: 20 VUs 稳定 (2 分钟，恢复期观察)
+- 阶段 7: 20 → 0 VUs (1 分钟，逐步降到0)
+
+**性能阈值**:
+- ✓ 失败率 < 3%（峰值期间允许少量失败）
+- ✓ P95 响应时间 < 15 秒
+- ✓ 检查通过率 > 85%
+
+**关键点**: 30秒内从20用户激增到100用户，模拟真实突发流量场景
 
 ---
 
 ### 5. 浸泡测试 (Soak Test)
 
-**用途**: 长时间稳定性测试，发现内存泄漏等问题
+**用途**: 长时间稳定性测试，发现内存泄漏、资源耗尽等问题
 
 ```bash
 k6 run performanceTests/soak/createProjectAndSpecSoakTest.js
 ```
 
 **配置**:
-- 持续时间: 2 小时
-- 并发用户: 10 VUs
-- 推荐: 结合 Grafana 实时监控
+- 执行器: constant-vus（恒定虚拟用户）
+- 并发用户: 30 VUs
+- 持续时间: 2 小时（默认）
+
+**自定义配置**:
+```bash
+# 短时间测试（10分钟，用于验证）
+k6 run -e DURATION=10m performanceTests/soak/createProjectAndSpecSoakTest.js
+
+# 超长时间测试（4小时）
+k6 run -e DURATION=4h performanceTests/soak/createProjectAndSpecSoakTest.js
+```
+
+**性能阈值**:
+- ✓ 失败率 < 1%（长时间运行应保持低失败率）
+- ✓ P95 响应时间 < 15 秒
+- ✓ 检查通过率 > 95%
+
+**推荐**:
+- ⭐ 结合 Grafana 实时监控，观察性能趋势
+- ⭐ 关注内存使用、响应时间是否逐渐增加
+- ⭐ 适合在非工作时间运行
 
 ---
 
